@@ -50,9 +50,19 @@ no game is running) the matching section is highlighted with a blinking `<< READ
    pip install -r requirements.txt
    ```
 4. **Add the ROMs**: the ROMs are copyrighted and not included. Copy them all into `data/`.
-   Both games share one folder: their common files are identical and their tiles/sprites have
-   different names, so nothing clashes. The file names and CRC32s are listed in
-   [`data/README.md`](data/README.md). `.gitignore` keeps them out of the repository.
+   They are the files of MAME's `pacman` (Midway) and `mspacman` sets:
+
+   | Game | Required files |
+   |---|---|
+   | Both | `pacman.6e`, `pacman.6f`, `pacman.6h`, `pacman.6j` (code), `82s123.7f` (colour PROM), `82s126.4a` (palette PROM), `82s126.1m`, `82s126.3m` (sound PROMs) |
+   | Pac-Man (`--rom-set pacman`) | the common files plus `pacman.5e` (tiles), `pacman.5f` (sprites) |
+   | Ms. Pac-Man (`--rom-set mspacman`) | the common files plus `5e` (tiles), `5f` (sprites), `u5`, `u6`, `u7` (aux board) |
+
+   Pac-Man needs 10 files and Ms. Pac-Man needs 13. The emulator won't start if any file is
+   missing (it lists them all) or has the wrong size or CRC32 (`--skip-checksums` turns CRC32
+   mismatches into warnings). Both games can share one folder: their common files are
+   identical and their tiles/sprites have different names, so nothing clashes. Sizes and CRC32s
+   are listed in [`data/README.md`](data/README.md). `.gitignore` keeps them out of the repository.
 5. **Run** (from this folder, so `fonts/` and `dip-switches.json` are found):
    ```sh
    python main.py --rom-set pacman         # Pac-Man (the default)
