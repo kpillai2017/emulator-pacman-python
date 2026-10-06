@@ -5,7 +5,14 @@
 #   * 36 rows x 28 columns of 8x8 tiles (tile numbers at 0x4000, palettes at 0x4400)
 #   * 8 hardware sprites of 16x16 (numbers/flags at 0x4FF0, coordinates at 0x5060)
 # Each tile/sprite pixel is 2 bits, looked up through a 4 colour palette (palette
-# PROM) which indexes the 32 entry colour PROM.
+# PROM) which indexes the 32 entry colour PROM:
+#
+#   pixel (0-3) --palette PROM--> colour number (0-15) --colour PROM--> RGB
+#
+# Only the low 5 bits of a tile's or sprite's palette byte select the palette
+# (32 palettes; the upper 32 in the PROM are unused and black). The game uses the
+# other bits for its own purposes, e.g. bit 6 marks the tunnel cells where the
+# ghosts slow down, so they must be ignored by the video hardware.
 import re
 import pygame
 from core.graphics import Graphics
@@ -34,8 +41,13 @@ def decode_colors(color_rom):
 
 
 def decode_palettes(palette_rom, colors):
-    """256 palette PROM bytes -> 64 palettes of 4 (r, g, b) colours."""
-    return [[colors[palette_rom[i + j] & 0x1F] for j in range(4)] for i in range(0, len(palette_rom), 4)]
+    """256 palette PROM bytes -> 64 palettes of 4 (r, g, b) colours.
+
+    The 82S126 PROM is 4 bits wide, so each entry is a colour number 0-15."""
+    return [[colors[palette_rom[i + j] & 0x0F] for j in range(4)] for i in range(0, len(palette_rom), 4)]
+
+
+PALETTE_MASK = 0x1F     # palette select bits of a tile/sprite palette byte (see top of file)
 
 
 def _strip_pixels(byte):
@@ -128,7 +140,6 @@ class Video:
         self.videoMemory = m
         self.videoMemoryPtr = m.get_memory_ptr()
         self.videoIo = io
-        self.is_mspacman = rom_data.rom_set == MSPACMAN
         self.colors = decode_colors(rom_data.color)
         self.palettes = decode_palettes(rom_data.palette, self.colors)
         self.tile_pixels = [decode_tile(rom_data.tile, i) for i in range(len(rom_data.tile) // 16)]
@@ -172,15 +183,12 @@ class Video:
         mem = self.videoMemoryPtr
         state = self._cell_state
         bg = self.background
-        mspac = self.is_mspacman
         get_tile = self.get_tile
         for n, (offset, x, y) in enumerate(TILE_LAYOUT):
             tile = mem[0x4000 + offset]
-            palette = mem[0x4400 + offset] & 0x7F
-            if mspac and palette == 93 and 0x040 <= offset < 0x3C0:
-                palette = 63    # Ms. Pac-Man blue maze fix (as in the C# version)
-            if palette >= 64:
-                palette = 0
+            # The C# version masked with 0x7F and special-cased Ms. Pac-Man's value 93
+            # (0x5D = tunnel flag 0x40 + palette 29); the hardware simply ignores bit 6.
+            palette = mem[0x4400 + offset] & PALETTE_MASK
             key = (tile, palette)
             if state[n] != key:
                 state[n] = key
@@ -195,6 +203,8 @@ class Video:
             flip_screen = io.flip_screen
         self._update_background()
         frame = self.frame
+        # Flip screen (cocktail cabinet, player 2's turn) rotates the tile layer only:
+        # the game itself writes mirrored sprite coordinates and flip bits.
         if flip_screen:
             frame.blit(pygame.transform.rotate(self.background, 180), (0, 0))
         else:
@@ -203,15 +213,17 @@ class Video:
         mem = self.videoMemoryPtr
         # Sprite 7 first, sprite 0 last (on top)
         for s in range(7, -1, -1):
+            # Sprite RAM: byte 0 = sprite number (bits 7-2), X flip (bit 1), Y flip (bit 0);
+            # byte 1 = palette. The coordinates live separately at 0x5060 (write only).
             flags = mem[0x4FF0 + s * 2]
-            palette = mem[0x4FF1 + s * 2]
-            if palette >= 64:
-                palette = 0
+            palette = mem[0x4FF1 + s * 2] & PALETTE_MASK
             if palette == 0:
-                continue        # fully transparent
+                continue        # palette 0 is all black = fully transparent
             sx = sprite_coords[s * 2]
             sy = sprite_coords[s * 2 + 1]
             surface = self.get_sprite(flags >> 2, palette, bool(flags & 0x02), bool(flags & 0x01))
+            # Coordinates count from the bottom right corner of the screen; the
+            # sprite Y axis is offset by the 16 pixel top/bottom tile rows.
             frame.blit(surface, (RESOLUTION_WIDTH - sx - 1, RESOLUTION_HEIGHT - 16 - sy))
 
         # Mask the off screen columns

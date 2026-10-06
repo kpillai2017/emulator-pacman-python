@@ -130,3 +130,16 @@ class VideoHardwareTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_ROMS, SKIP_REASON)
+class PaletteMaskTests(unittest.TestCase):
+    def test_only_low_five_palette_bits_are_used(self):
+        """Bits 5-7 of a palette byte (e.g. Ms. Pac-Man's tunnel flag 0x40) don't change colours."""
+        video, memory = make_video("maze-1.vram")
+        expected = surface_rgb(video.render_frame(bytes(16), False))
+        mem = memory.memoryPtr
+        for a in range(0x4400, 0x4800):
+            mem[a] |= 0xE0
+        video.invalidate()
+        self.assertEqual(surface_rgb(video.render_frame(bytes(16), False)), expected)

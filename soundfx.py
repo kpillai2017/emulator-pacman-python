@@ -44,8 +44,10 @@ class SoundFX:
         self._tick_tables = {}
 
     def init(self, sound_rom: bytes) -> bool:
-        """sound_rom: the two 256 byte sound PROMs (82s126.1m + 82s126.3m)."""
-        # Only waveforms 0-7 are addressable (3 bit waveform register)
+        """sound_rom: RomData.sound; only its first 256 bytes (82s126.1m) are used.
+
+        82s126.1m holds 8 waveforms of 32 4-bit samples (the 3-bit waveform register can
+        only select these 8). Samples are stored 0-15 and centred here to -8..7."""
         self.waveforms = [[(b & 0x0F) - 8 for b in sound_rom[w * 32:(w + 1) * 32]] for w in range(8)]
         mixer = pygame.mixer.get_init()
         if mixer:

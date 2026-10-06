@@ -9,7 +9,14 @@
 #   0x8000-0x9FFF  Ms. Pac-Man aux board ROM (once enabled)
 #
 # The CPU reads straight from memoryPtr for speed, so the I/O read ports are stored
-# in it too (refreshed by Io.update() each frame). Writes always go through write().
+# in it too (refreshed by Io.update() each frame). Writes always go through write(),
+# which protects the ROM and routes 0x5000-0x50FF to the I/O registers.
+#
+# Ms. Pac-Man is a Pac-Man board plus a daughterboard plugged into the Z80 socket.
+# Its ROMs are encrypted (address and data lines scrambled) and it patches small
+# pieces of the Pac-Man code with jumps into its own code. As in the C# version the
+# board is modelled simply: once the game writes 1 to 0x5002 (after the Pac-Man
+# self-test) the decrypted and patched image replaces the code ROM area.
 from roms import RomData, MS_PAC_MAN_AUX_U5, MS_PAC_MAN_AUX_U6, MS_PAC_MAN_AUX_U7, MSPACMAN
 
 

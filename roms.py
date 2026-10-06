@@ -14,7 +14,9 @@ PAC_MAN_PALETTE = ROMFile("82s126.4a", 256, "3EB3A8E4", "Palette (256B) (64 four
 PAC_MAN_TILE = ROMFile("pacman.5e", 4096, "0C944964", "Tile (4KB) (256 8x8 pixel tile images)")
 PAC_MAN_SPRITE = ROMFile("pacman.5f", 4096, "958FEDF9", "Sprite (4KB) (64 16x16 sprite images)")
 PAC_MAN_SOUND_1 = ROMFile("82s126.1m", 256, "A9CC86BF", "Sound 1 (256B) (8 waveforms)")
-PAC_MAN_SOUND_2 = ROMFile("82s126.3m", 256, "77245B66", "Sound 2 (256B) (8 waveforms)")
+# 82s126.3m sits next to the sound PROM but is a timing PROM: it is required (and
+# checked) for completeness, as in the C# version, but the emulator never reads it.
+PAC_MAN_SOUND_2 = ROMFile("82s126.3m", 256, "77245B66", "Sound 2 (256B) (timing PROM, unused)")
 MS_PAC_MAN_TILE = ROMFile("5e", 4096, "5C281D01", "Tile (4KB) (256 8x8 pixel tile images)")
 MS_PAC_MAN_SPRITE = ROMFile("5f", 4096, "615AF909", "Sprite (4KB) (64 16x16 sprite images)")
 MS_PAC_MAN_AUX_U5 = ROMFile("u5", 2048, "F45FBBCD", "Aux Board ROM (2KB)")

@@ -1,4 +1,12 @@
 # Python port of the C# Emulator / PacManPCB main loop
+#
+# The Emulator ties the parts of the Pac-Man board together:
+#   Cpu (cpu.py)        Z80 at 3.072 MHz
+#   Memory (memory.py)  ROM/RAM map, Ms. Pac-Man aux board
+#   Io (iohandler.py)   joysticks/buttons/DIP switches and the 0x5000 control registers
+#   Video (video.py)    tiles + sprites -> the 224x288 portrait picture
+#   SoundFX (soundfx.py) Namco WSG3 3-voice wavetable sound
+# core.game.Game provides the pygame window, input and the 60 FPS loop that calls update().
 import pygame
 
 from core.game import Game
@@ -35,7 +43,8 @@ class Emulator(Game):
         self.emulSoundFX = SoundFX()
         self.emulVideo = Video()
         self.paused = False
-        self.cycle_overshoot = 0
+        self.cycle_overshoot = 0    # T-states the last frame ran past its budget
+        self.irq_pending = False    # VBLANK interrupt raised but not yet accepted by the CPU
         self.frames = 0
 
     def init(self):
@@ -62,15 +71,56 @@ class Emulator(Game):
         return True
 
     def run_frame(self):
-        """Emulate one 1/60 s frame: CPU, sound, then the VBLANK interrupt."""
+        """Emulate one 1/60 s frame.
+
+        Real hardware runs the CPU continuously and raises one interrupt per frame at
+        vertical blank (VBLANK). Here a frame is: sample the inputs, run the CPU for a
+        frame's worth of T-states, produce the frame's audio, then raise the VBLANK
+        interrupt (the screen is drawn by update() right after).
+        """
         io = self.emulIO
+        cpu = self.emulCpu
         io.update()
-        target = CYCLES_PER_FRAME - self.cycle_overshoot
-        self.cycle_overshoot = self.emulCpu.run(target) - target
+        # Run exactly one frame of CPU time on average: an instruction can't be cut in
+        # half, so whatever the previous frame overran by is taken off this one.
+        budget = CYCLES_PER_FRAME - self.cycle_overshoot
+        done = self._deliver_pending_interrupt(budget)
+        if done < budget:
+            done += cpu.run(budget - done)
+        self.cycle_overshoot = done - budget
         self.emulSoundFX.update(io.sound_enabled)
+        # VBLANK: if the game has enabled interrupts at 0x5000, the interrupt line is
+        # raised and stays raised until the CPU accepts it (it may be inside a DI
+        # section right now, in which case it is delivered early in the next frame).
         if io.interrupt_enabled:
-            self.emulCpu.interrupt(io.interrupt_vector)
+            self.irq_pending = True
+            self.cycle_overshoot += self._deliver_pending_interrupt(0)
         self.frames += 1
+
+    def _deliver_pending_interrupt(self, budget):
+        """Deliver the pending interrupt as soon as the CPU accepts it.
+
+        While the CPU refuses it, keep running it for at most `budget` T-states and retry:
+        one instruction at a time just after EI, in 64 T-state (~20 us) steps while
+        interrupts are disabled (e.g. during the boot self-test, which runs with DI).
+        Returns the T-states used.
+        """
+        io = self.emulIO
+        cpu = self.emulCpu
+        done = 0
+        while self.irq_pending:
+            if not io.interrupt_enabled:        # writing 0 to 0x5000 clears the line
+                self.irq_pending = False
+                break
+            taken = cpu.interrupt(io.interrupt_vector)
+            if taken:
+                self.irq_pending = False
+                done += taken
+                break
+            if done >= budget:
+                break
+            done += cpu.run(1 if cpu.iff1 else 64)
+        return done
 
     def update(self):
         in_obj = self.get_input()

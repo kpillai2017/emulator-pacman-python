@@ -13,8 +13,17 @@
 # Registers are plain int attributes: A F B C D E H L (8-bit), IX IY SP PC
 # (16-bit), the alternate set A_ F_ B_ C_ D_ E_ H_ L_, and I, R.
 # F is kept as a real flags byte so PUSH/POP AF and the flag lookup tables work
-# directly. Undocumented X/Y flags (bits 3 and 5) are emulated for most
-# instructions; ZEXDOC (documented behaviour) is the conformance target.
+# directly. The undocumented X/Y flags (bits 3 and 5) are emulated too: the core
+# passes both ZEXDOC (documented flags) and ZEXALL (all flags), see tests/zex.py.
+#
+# Opcode decoding uses the classic x/y/z/p/q split of the opcode byte
+# (http://www.z80.info/decoding.htm):
+#     bits  7 6 | 5 4 3 | 2 1 0
+#           x   |   y   |   z        with y = p (bits 5-4) and q (bit 3)
+# e.g. 0x41 = 01 000 001 -> x=1 (LD r,r'), y=0 (B), z=1 (C) -> LD B,C.
+#
+# Every handler returns the T-states (clock cycles) it took, which is how the
+# emulator keeps the CPU in step with the 60 Hz video/sound hardware.
 from util import Util
 
 # Flag bits in F
@@ -272,7 +281,12 @@ def _gen_main(op, ctx):
             return ["self.D, self.H = self.H, self.D; self.E, self.L = self.L, self.E", "return 4"]
         if y == 6:
             return ["self.iff1 = self.iff2 = False", "return 4"]              # DI
-        return ["self.iff1 = self.iff2 = True", "return 4"]                   # EI
+        # EI: interrupts are only accepted after the *next* instruction (so that
+        # "EI / RET" at the end of a handler returns before another interrupt can
+        # nest). Remember the PC and the fetch count (R) at this point: while both
+        # are unchanged no instruction has run since EI. See Cpu.interrupt().
+        return ["self.iff1 = self.iff2 = True; self.ei_pc = self.PC; self.ei_r = self.R & 0x7F",
+                "return 4"]                                                   # EI
     if z == 4:                                                               # CALL cc,nn
         return [FETCH16, f"if {_CC[y]}: {_push('self.PC')}; self.PC = nn; return 17", "return 10"]
     if z == 5:
@@ -506,6 +520,8 @@ class Cpu:
         self.iff1 = False   # interrupts enabled
         self.iff2 = False   # copy of iff1 saved during an NMI
         self.im = 0         # interrupt mode 0 / 1 / 2
+        self.ei_pc = -1     # PC and R just after the last EI: interrupts wait one more
+        self.ei_r = -1      # instruction (see EI in _gen_main and interrupt())
         self.halted = False
 
     def run(self, cycles: int) -> int:
@@ -514,12 +530,15 @@ class Cpu:
         mem = self.mem
         table = self._main
         done = 0
+        # The hot loop: fetch the opcode, advance PC, bump the refresh register R
+        # (incremented on every opcode fetch; prefixed opcodes bump it again in
+        # their prefix handler) and dispatch. Locals are used for speed.
         while done < cycles:
             pc = self.PC
             self.PC = (pc + 1) & 0xFFFF
             self.R += 1
             done += table[mem[pc]]()
-        self.R &= 0x7F
+        self.R &= 0x7F      # R is only 7 bits wide (bit 7 is kept in R7)
         return done
 
     def step(self) -> int:
@@ -538,12 +557,18 @@ class Cpu:
             self.PC = (self.PC + 1) & 0xFFFF   # HALT re-executes itself, so step past it
 
     def interrupt(self, data_bus: int = 0) -> int:
-        """Signal a maskable interrupt; data_bus is the byte the hardware places on the bus.
-        Returns T-states used (0 if interrupts are disabled)."""
+        """Try to deliver a maskable interrupt; data_bus is the byte the hardware places on the bus.
+
+        Returns the T-states used, or 0 if the CPU cannot accept it right now: either
+        interrupts are disabled (DI) or the previous instruction was EI. The caller
+        keeps the interrupt pending and tries again later, like a real held IRQ line."""
         if not self.iff1:
             return 0
+        if self.PC == self.ei_pc and (self.R & 0x7F) == self.ei_r:
+            return 0            # EI was the last instruction: accept only after the next one
+        self.ei_pc = -1
         self._leave_halt()
-        self.iff1 = self.iff2 = False
+        self.iff1 = self.iff2 = False   # the handler must re-enable them with EI
         self.R = (self.R + 1) & 0x7F
         self._push_pc()
         if self.im == 2:

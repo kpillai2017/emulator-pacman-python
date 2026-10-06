@@ -39,7 +39,7 @@ no game is running) the matching section is highlighted with a blinking `<< READ
 
 ## Setup Instructions
 
-1. **Install Python 3.10+** (tested with Python 3.12).
+1. **Install Python 3.9+** (tested with Python 3.9 and 3.12).
 2. **(Optional) Create a virtual environment**
    ```sh
    python3 -m venv venv
@@ -126,8 +126,11 @@ features), and the Xbox/UWP build.
    - `Io.update()` samples the keyboard into the active-low `IN0`/`IN1` ports.
    - The CPU runs 51,200 T-states (3.072 MHz / 60). Any overshoot is carried over to the next frame.
    - `SoundFX` generates 1/60 s of WSG3 audio and queues it on a mixer channel.
-   - If the interrupt latch (`0x5000`) is set, the VBLANK interrupt fires. The game uses interrupt
-     mode 2 with the vector low byte set by `OUT (0),A`.
+   - If the interrupt latch (`0x5000`) is set, the VBLANK interrupt line is raised. Like the real
+     hardware it stays raised until the CPU accepts it, so an interrupt that arrives while
+     interrupts are disabled (`DI`, or the instruction just after `EI`) is delayed, not lost.
+     Writing `0` to `0x5000` clears it. The game uses interrupt mode 2 with the vector low byte
+     set by `OUT (0),A`.
    - `Video` renders the screen and the help panel.
 3. **CPU** (`cpu.py`): CPython is too slow for a classic `if/elif` interpreter at 3 MHz, so every opcode
    of every prefix (main, `CB`, `ED`, `DD`, `FD`, `DDCB`, `FDCB`) is generated at start-up from
@@ -139,8 +142,9 @@ features), and the Xbox/UWP build.
    RAM is stored, ROM is protected, and `0x5000`-`0x50FF` is routed to `Io.write_register()`.
    On Ms. Pac-Man, writing `1` to `0x5002` maps in the decrypted aux board ROMs (`0x0000`-`0x3FFF` patched,
    `0x8000`-`0x9FFF` extra code).
-5. **Video** (`video.py`): 28x36 tiles of 8x8 pixels plus 8 sprites of 16x16 pixels, through 64
-   four-colour palettes into 32 PROM colours. Only tiles whose number or palette changed are redrawn
+5. **Video** (`video.py`): 28x36 tiles of 8x8 pixels plus 8 sprites of 16x16 pixels. Each pixel (0-3) is looked up in
+   one of 32 four-colour palettes (the low 5 bits of the colour byte; bit 6 is the Ms. Pac-Man
+   tunnel flag) to give a colour index 0-15, which the 32-entry colour PROM turns into RGB. Only tiles whose number or palette changed are redrawn
    into a background surface. Sprites are blitted on top, the 16 pixel side columns are masked, and
    the 256x288 frame is scaled 2x. Cocktail mode screen flipping is supported.
 6. **Sound** (`soundfx.py`): 3 voices, each a 32-step 4-bit waveform from the sound PROMs with a 20-bit
@@ -152,10 +156,10 @@ features), and the Xbox/UWP build.
 ## Tests
 
 ```sh
-python -m unittest discover -s tests -t .   # video, sound and end-to-end tests (< 1 s)
+python -m unittest discover -s tests -t .   # unit and end-to-end tests (a few seconds)
 python -m tests.zex 4 daa neg               # selected Z80 exerciser tests (by index or label)
 python -m tests.zex --list                  # list the 67 exerciser tests
-python -m tests.zex                         # full ZEXDOC (documented flags): slow, ~1 h
+python -m tests.zex                         # full ZEXDOC (documented flags): slow (about an hour)
 python -m tests.zex --all-flags             # full ZEXALL (also undocumented X/Y flags)
 ```
 
@@ -171,10 +175,33 @@ python -m tests.zex --all-flags             # full ZEXALL (also undocumented X/Y
   coin input). It also checks the Ms. Pac-Man aux board decryption and mapping.
 - `tests/test_roms.py`: checks the missing-ROM error lists every missing file and, when the folder
   holds another game's files, suggests the matching `--rom-set`.
+- `tests/test_interrupts.py`: checks that the CPU refuses interrupts while disabled and for one
+  instruction after `EI`, that `EI` + `HALT` wakes up, and that a VBLANK raised during `DI` is
+  delivered later (and cleared by writing `0` to `0x5000`).
 - `tests/zex.py`: the ZEXDOC/ZEXALL Z80 instruction exercisers (port of the C# `CPUIntegrationTest`),
   with a CP/M BDOS stub for output.
 
-`tests/data/` holds the test ROM data and VRAM dumps from the C# test project, and the ZEX programs.
+`tests/data/` holds the VRAM dumps from the C# test project and the ZEXDOC/ZEXALL programs (no
+game ROMs).
+
+---
+
+## Differences from the C# Version
+
+The behaviour follows the C# version, with these deliberate fixes:
+
+- **Interrupts**: the VBLANK interrupt is a held line (as in MAME) and `EI` enables interrupts only
+  after the next instruction, as on a real Z80. The C# version drops a VBLANK that arrives while
+  interrupts are disabled.
+- **Palettes**: the palette number is masked to 5 bits (`& 0x1F`). This makes the Ms. Pac-Man
+  "palette 93 → 63" special case unnecessary: 93 is the tunnel flag (`0x40`) plus palette 29.
+- **Input ports**: every address in `0x5000`-`0x503F` reads `IN0` (the port is mirrored).
+- **Aux board**: the decrypted Ms. Pac-Man ROM covers exactly `0x0000`-`0x3FFF`; the C# `<= 0x4000`
+  off-by-one is not copied.
+- **Z80 tests**: all 67 ZEX tests run (the C# suite skips `ld8rrx`). ZEXDOC and ZEXALL both pass.
+- **DIP switches**: the lives comment in `dip-switches.json` is corrected.
+- **`82s126.3m`**: loaded and CRC-checked to keep the ROM set complete, but not used (it is a
+  timing PROM, not a waveform).
 
 ---
 
