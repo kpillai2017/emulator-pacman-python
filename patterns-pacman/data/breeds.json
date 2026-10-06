@@ -1,0 +1,86 @@
+{
+  "_comment": "Ghost breeds (Type Object, p12_type_object.py). A breed inherits every field it does not define from its 'parent' (copy-down inheritance; also the 'Prototypes for Data Modeling' idea from p04). 'chase_program' is assembly for the bytecode VM in p10_bytecode.py. Speeds are fractions of the arcade's full speed. Tiles are (column, row); corners may lie outside the maze.",
+
+  "ghost": {
+    "abstract": true,
+    "display_name": "Ghost",
+    "nickname": "",
+    "colour": [255, 255, 255],
+    "speed": 0.75,
+    "tunnel_speed": 0.40,
+    "frightened_speed": 0.50,
+    "eaten_speed": 2.00,
+    "elroy_dots": 0,
+    "elroy_speed": 0.85,
+    "release_delay": 0.0,
+    "starts_outside": false,
+    "house_x": 14.0,
+    "scatter_corner": [0, 0],
+    "chase_program": ["PAC_X PAC_Y SET_TARGET"]
+  },
+
+  "blinky": {
+    "parent": "ghost",
+    "display_name": "Blinky",
+    "nickname": "Shadow",
+    "colour": [255, 0, 0],
+    "starts_outside": true,
+    "scatter_corner": [25, 0],
+    "elroy_dots": 20,
+    "chase_program": [
+      "; Straight for Pac-Man's tile",
+      "PAC_X PAC_Y SET_TARGET"
+    ]
+  },
+
+  "pinky": {
+    "parent": "ghost",
+    "display_name": "Pinky",
+    "nickname": "Speedy",
+    "colour": [255, 184, 255],
+    "release_delay": 1.0,
+    "scatter_corner": [2, 0],
+    "chase_program": [
+      "; Ambush: 4 tiles in front of Pac-Man",
+      "PAC_X PAC_DX LIT 4 MUL ADD",
+      "PAC_Y PAC_DY LIT 4 MUL ADD",
+      "SET_TARGET"
+    ]
+  },
+
+  "inky": {
+    "parent": "ghost",
+    "display_name": "Inky",
+    "nickname": "Bashful",
+    "colour": [0, 255, 255],
+    "release_delay": 4.0,
+    "house_x": 12.0,
+    "scatter_corner": [27, 32],
+    "chase_program": [
+      "; Teamwork: double the vector from Blinky to 2 tiles ahead of Pac-Man",
+      "PAC_X PAC_DX LIT 2 MUL ADD  LIT 2 MUL  BLINKY_X SUB",
+      "PAC_Y PAC_DY LIT 2 MUL ADD  LIT 2 MUL  BLINKY_Y SUB",
+      "SET_TARGET"
+    ]
+  },
+
+  "clyde": {
+    "parent": "ghost",
+    "display_name": "Clyde",
+    "nickname": "Pokey",
+    "colour": [255, 184, 82],
+    "release_delay": 8.0,
+    "house_x": 16.0,
+    "scatter_corner": [0, 32],
+    "chase_program": [
+      "; Chase when further than 8 tiles away, otherwise go home",
+      "SELF_X SELF_Y PAC_X PAC_Y DIST2",
+      "LIT 64 GREATER",
+      "JUMP_IF_FALSE shy",
+      "PAC_X PAC_Y SET_TARGET",
+      "HALT",
+      "shy:",
+      "CORNER_X CORNER_Y SET_TARGET"
+    ]
+  }
+}

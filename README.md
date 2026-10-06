@@ -6,6 +6,10 @@ sprite video hardware, Namco WSG3 sound, DIP switches and controls.
 It is a port of the C# [pac-man-emulator](../pac-man-emulator) and uses the same modular layout and
 the same, unchanged `core/` framework as [emulator-spinvaders-python](../emulator-spinvaders-python).
 
+> **Learning game patterns?** [`patterns-pacman/`](patterns-pacman/README.md) is a separate,
+> playable Pac-Man clone built on the same `core/` engine. It teaches the 19 patterns of
+> Robert Nystrom's *Game Programming Patterns* one module at a time, in the book's order.
+
 ---
 
 ## Game Instructions
