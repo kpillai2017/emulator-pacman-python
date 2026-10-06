@@ -1,0 +1,57 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Unit test / coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# pyenv
+.python-version
+
+# Virtual environments (README suggests `python3 -m venv venv`)
+venv/
+.venv/
+.direnv/
+.envrc
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# MacOS
+.DS_Store
+
+# Game ROMs are copyrighted: never commit them (data/ keeps only its README)
+data/*
+!data/README.md
+# Safety net: never commit a ROM file by name, wherever it is placed
+pacman.5e
+pacman.5f
+pacman.6[efhj]
+82s12[36].*
+/**/5e
+/**/5f
+/**/u[567]
+*.zip
+*.rom
+*.fon
+# ...except the bundled on-screen font, which the emulator needs at runtime
+!fonts/blitz.fon
+
+# Ignore test outputs
+*.out
+
+# Temporary helper files
+tmp_rovo_*
