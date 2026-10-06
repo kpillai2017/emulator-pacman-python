@@ -11,19 +11,26 @@ pattern working live.
 *Attract mode with the debug overlay (Tab): ghost target tiles, the spatial-partition grid
 and the live "patterns at work" panel.*
 
-It reuses the small engine in [`../core`](../core) (window, keyboard, audio init, fonts) from the
-emulator in the parent folder, **without changing it**: the Game Loop pattern is implemented by
+It is built on a small pygame engine in [`core/`](core/README.md) (window, keyboard, audio
+initialisation, fonts) and **doesn't change it**: the Game Loop pattern is implemented by
 subclassing `core.game.Game` (see [`patterns/p08_game_loop.py`](patterns/p08_game_loop.py)).
 
 ---
 
 ## Running it
 
+The repository is self-contained. It needs Python 3.9+ and pygame, nothing else.
+
 ```sh
+git clone <this-repository-url> patterns-pacman
 cd patterns-pacman
-pip install -r ../requirements.txt      # just pygame (tested: pygame 2.6.1, Python 3.9 / 3.12)
+python3 -m venv venv && source venv/bin/activate     # optional (Windows: venv\Scripts\activate)
+pip install -r requirements.txt                      # just pygame (tested: 2.6.1 on Python 3.9 and 3.13)
 python main.py
 ```
+
+`main.py` finds its own packages, so `python path/to/patterns-pacman/main.py` works from any
+folder.
 
 No image, sound or font files are needed: shapes are drawn with `pygame.draw`, sounds are
 synthesised square waves ([`support/synth.py`](support/synth.py)), text uses pygame's built-in font.
@@ -155,7 +162,9 @@ matching chapter open next to each module.
 
 ```
 patterns-pacman/
-  main.py                 entry point (puts ../core on sys.path)
+  main.py                 entry point
+  requirements.txt        pygame
+  core/                   the small pygame engine the game builds on (don't edit)
   patterns/               the 19 pattern modules, p01 ... p19, in book order
   app/                    the game assembled from the patterns
     game.py               PatternManGame: rules + wiring (every pattern is used here)
@@ -192,6 +201,7 @@ To keep the code readable:
 
 - Patterns, structure and quoted section names: Robert Nystrom,
   [*Game Programming Patterns*](https://gameprogrammingpatterns.com/) (2014), free to read online.
-- Engine: the shared [`core`](../core) package of this repository.
+- Engine: [`core/`](core/README.md), an unchanged copy of the engine from
+  [emulator-pacman-python](https://github.com/kpillai2017/emulator-pacman-python).
 - Pac-Man is © Bandai Namco. This is a non-commercial, educational re-implementation and uses
   no original assets.

@@ -7,9 +7,10 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# The engine lives in ../core (shared with the emulator); our packages live here.
-sys.path.insert(0, os.path.dirname(HERE))
-sys.path.insert(0, HERE)
+# Everything (the core engine, patterns, app, support) lives next to this file,
+# so the game runs from any working directory.
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 
 from patterns.p05_singleton import Settings  # noqa: E402
 from app.game import PatternManGame          # noqa: E402

@@ -47,6 +47,23 @@ class TestImportOrder(unittest.TestCase):
                                      f"{os.path.basename(path)} imports the app layer")
 
 
+class TestStandalone(unittest.TestCase):
+    """The repository must run on its own: the engine comes from ./core, not elsewhere."""
+
+    def test_core_is_the_vendored_copy(self):
+        import core.game
+        here = os.path.realpath(tests.GAME_DIR)
+        self.assertTrue(os.path.realpath(core.game.__file__).startswith(here + os.sep),
+                        f"core imported from outside the project: {core.game.__file__}")
+
+    def test_no_paths_outside_the_project(self):
+        for name in ("main.py", os.path.join("tests", "__init__.py")):
+            with open(os.path.join(tests.GAME_DIR, name), encoding="utf-8") as f:
+                source = f.read()
+            self.assertNotIn("dirname(HERE))", source.replace(" ", ""))
+            self.assertNotIn("dirname(GAME_DIR)", source)
+
+
 class TestP01Command(unittest.TestCase):
     def test_keys_map_to_shared_move_commands(self):
         from patterns.p01_command import InputHandler, MOVE_UP

@@ -1,0 +1,2 @@
+# Graphics, sound and keyboard input (tested with pygame 2.6.1 on Python 3.9 and 3.13)
+pygame>=2.6.1,<3

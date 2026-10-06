@@ -1,0 +1,29 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test / coverage output
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments and direnv
+venv/
+.venv/
+.direnv/
+.envrc
+.python-version
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Temporary helper files
+tmp_rovo_*

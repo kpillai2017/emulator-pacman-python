@@ -17,8 +17,8 @@ THE BOOK'S FOUR LOOPS (book section "Sample Code")
        machine.
     2. "Take a little nap": update, render, then sleep whatever is left of
        the 1/60 s. This is what the engine's ``core.game.Game.run`` does
-       (look at its ``delay_time`` code). Simple, and fine for the emulator in
-       the parent folder. But if a frame takes longer than 1/60 s the
+       (look at its ``delay_time`` code in core/game.py). Simple, and fine for
+       many games. But if a frame takes longer than 1/60 s the
        *game slows down*.
     3. "One small step, one giant step": a variable time step: pass the
        elapsed time into update. It adapts to any speed, but makes physics
