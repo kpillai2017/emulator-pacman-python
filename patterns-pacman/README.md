@@ -199,6 +199,7 @@ To keep the code readable:
 
 ## Credits
 
+- Author: [kpillai2017](https://github.com/kpillai2017).
 - Patterns, structure and quoted section names: Robert Nystrom,
   [*Game Programming Patterns*](https://gameprogrammingpatterns.com/) (2014), free to read online.
 - Engine: [`core/`](core/README.md), an unchanged copy of the engine from
